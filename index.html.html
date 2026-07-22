@@ -10,14 +10,23 @@
   <div class="container">
     <h1>📇 อ่านบัตรประชาชน</h1>
     
+    <div class="status-bar">
+      <span id="statusText">✅ พร้อมใช้งาน</span>
+    </div>
+    
     <button id="readBtn" onclick="readCard()">
       📖 อ่านบัตร
     </button>
     
-    <div id="loading" style="display:none;">⏳ กำลังอ่าน...</div>
+    <div id="loading" style="display:none;">
+      <div class="spinner"></div>
+      <p>กำลังอ่านข้อมูลบัตร...</p>
+      <small>กรุณารอสักครู่</small>
+    </div>
     
-    <!-- ฟอร์มแสดงข้อมูล -->
     <div id="result" class="card">
+      <h3>📋 ข้อมูลบัตรประชาชน</h3>
+      
       <div class="form-group">
         <label>เลขบัตรประชาชน</label>
         <input type="text" id="idCardNumber" readonly />
@@ -35,7 +44,7 @@
       
       <div class="form-group">
         <label>วันเกิด</label>
-        <input type="text" id="birthDate" readonly />
+        <input type="text" id="birthDate" readonly placeholder="DD/MM/YYYY" />
       </div>
       
       <div class="form-group">
@@ -45,12 +54,7 @@
       
       <div class="form-group">
         <label>วันหมดอายุ</label>
-        <input type="text" id="expiryDate" readonly />
-      </div>
-      
-      <div class="form-group">
-        <label>ที่อยู่</label>
-        <textarea id="address" readonly rows="3"></textarea>
+        <input type="text" id="expiryDate" readonly placeholder="DD/MM/YYYY" />
       </div>
     </div>
   </div>

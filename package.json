@@ -1,7 +1,7 @@
 {
-  "name": "smartcard-reader-web",
+  "name": "card-reader-backend",
   "version": "1.0.0",
-  "description": "Web app for Thai ID card reader",
+  "description": "Thai ID card reader with Node.js",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
