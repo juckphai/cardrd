@@ -1,16 +1,19 @@
 let ws = null;
 let isConnected = false;
 let isReading = false;
+let wsConnected = false;
 
 // เชื่อมต่อ WebSocket
 function connectWebSocket() {
   const statusEl = document.getElementById('connectionStatus');
   
+  // ใช้พอร์ต 3001 สำหรับ WebSocket
   ws = new WebSocket('ws://localhost:3001');
   
   ws.onopen = () => {
     console.log('✅ เชื่อมต่อ WebSocket สำเร็จ');
     isConnected = true;
+    wsConnected = true;
     statusEl.textContent = '✅ เชื่อมต่อแล้ว';
     statusEl.style.color = 'green';
     document.getElementById('readBtn').disabled = false;
@@ -44,6 +47,7 @@ function connectWebSocket() {
   ws.onclose = () => {
     console.log('🔌 WebSocket ปิดการเชื่อมต่อ');
     isConnected = false;
+    wsConnected = false;
     statusEl.textContent = '❌ ไม่มีการเชื่อมต่อ';
     statusEl.style.color = 'red';
     document.getElementById('readBtn').disabled = true;
@@ -56,6 +60,7 @@ function connectWebSocket() {
 // อ่านบัตร
 async function readCard() {
   if (!isConnected || isReading) {
+    console.log('⏳ ไม่สามารถอ่านได้:', { isConnected, isReading });
     return;
   }
   
@@ -65,18 +70,21 @@ async function readCard() {
   document.getElementById('result').style.display = 'none';
   
   try {
-    // สั่งให้ REST API อ่านบัตร (จะส่งผ่าน WebSocket)
-    const response = await fetch('http://localhost:3001/api/read-card');
+    // ใช้พอร์ต 3000 สำหรับ HTTP API
+    const response = await fetch('http://localhost:3000/api/read-card');
     const data = await response.json();
     
+    console.log('📨 Response from API:', data);
+    
     if (!data.success) {
-      alert('เกิดข้อผิดพลาด: ' + data.error);
+      alert('เกิดข้อผิดพลาด: ' + (data.error || data.message));
       isReading = false;
       document.getElementById('loading').style.display = 'none';
       document.getElementById('readBtn').disabled = false;
     }
     // รอข้อมูลจาก WebSocket
   } catch (error) {
+    console.error('❌ Fetch error:', error);
     alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์: ' + error.message);
     isReading = false;
     document.getElementById('loading').style.display = 'none';
@@ -86,6 +94,8 @@ async function readCard() {
 
 // แสดงข้อมูลบัตร
 function displayCardData(data) {
+  console.log('📇 แสดงข้อมูลบัตร:', data);
+  
   document.getElementById('idCardNumber').textContent = data.idCardNumber || '-';
   document.getElementById('firstName').textContent = data.firstName || '-';
   document.getElementById('lastName').textContent = data.lastName || '-';
@@ -98,5 +108,6 @@ function displayCardData(data) {
 
 // เริ่มต้นเมื่อโหลดหน้า
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('📄 หน้าเว็บโหลดเสร็จ เริ่มเชื่อมต่อ WebSocket...');
   connectWebSocket();
 });

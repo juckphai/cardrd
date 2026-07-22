@@ -4,8 +4,8 @@ const WebSocket = require('ws');
 const http = require('http');
 
 const app = express();
-const PORT = 3001; // WebSocket Port
-const HTTP_PORT = 3000; // HTTP Server Port
+const WS_PORT = 3001;    // WebSocket Port
+const HTTP_PORT = 3000;  // HTTP Server Port
 
 app.use(cors());
 app.use(express.json());
@@ -23,19 +23,18 @@ let webClients = new Set();
 
 wss.on('connection', (ws, req) => {
   console.log('🟢 ใหม่เชื่อมต่อ WebSocket');
+  webClients.add(ws);
   
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message.toString());
       console.log('📨 รับข้อความ:', data);
       
-      // เช็คว่าเป็นเครื่องอ่านบัตรหรือเว็บ client
       if (data.type === 'reader_info') {
         // เป็นเครื่องอ่านบัตร
         cardReaderClient = ws;
         console.log('✅ เชื่อมต่อกับเครื่องอ่านบัตรแล้ว');
         
-        // ส่งสถานะกลับ
         ws.send(JSON.stringify({
           status: 'connected',
           message: 'เชื่อมต่อสำเร็จ'
@@ -43,7 +42,7 @@ wss.on('connection', (ws, req) => {
       } else if (data.status === 'success' && data.data) {
         // ข้อมูลจากเครื่องอ่านบัตร -> ส่งต่อให้เว็บ client
         webClients.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({
               type: 'card_data',
               data: data.data
@@ -58,22 +57,17 @@ wss.on('connection', (ws, req) => {
   
   ws.on('close', () => {
     console.log('🔴 ตัดการเชื่อมต่อ');
-    
-    // ลบ client
     webClients.delete(ws);
     if (cardReaderClient === ws) {
       cardReaderClient = null;
     }
   });
-  
-  // เก็บเว็บ client (ที่ยังไม่ได้เป็นเครื่องอ่านบัตร)
-  if (!ws._isReader) {
-    webClients.add(ws);
-  }
 });
 
 // REST API - สั่งอ่านบัตร
 app.get('/api/read-card', (req, res) => {
+  console.log('📖 รับคำขออ่านบัตร');
+  
   if (!cardReaderClient) {
     return res.status(503).json({
       success: false,
@@ -86,7 +80,6 @@ app.get('/api/read-card', (req, res) => {
     command: 'read_card'
   }));
   
-  // รอผลลัพธ์ (ใช้ WebSocket)
   res.json({
     success: true,
     message: 'กำลังอ่านบัตร... โปรดรอ'
@@ -97,11 +90,18 @@ app.get('/api/read-card', (req, res) => {
 app.get('/api/status', (req, res) => {
   res.json({
     readerConnected: cardReaderClient !== null,
-    webClients: webClients.size
+    webClients: webClients.size,
+    port: HTTP_PORT
   });
+});
+
+// หน้าแรก
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/frontend/index.html');
 });
 
 server.listen(HTTP_PORT, () => {
   console.log(`🚀 HTTP Server: http://localhost:${HTTP_PORT}`);
-  console.log(`🔌 WebSocket Server: ws://localhost:${HTTP_PORT}`);
+  console.log(`🔌 WebSocket Server: ws://localhost:${WS_PORT}`);
+  console.log(`📁 Serving files from: ${__dirname}/frontend`);
 });
