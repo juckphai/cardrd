@@ -2,22 +2,27 @@ const express = require('express');
 const cors = require('cors');
 const WebSocket = require('ws');
 const http = require('http');
+const path = require('path');
 
 const app = express();
-const WS_PORT = 3001;    // WebSocket Port
-const HTTP_PORT = 3000;  // HTTP Server Port
+const WS_PORT = 3001;
+const HTTP_PORT = 3000;
 
-app.use(cors());
+// CORS
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.json());
-app.use(express.static('frontend'));
 
-// HTTP Server
+// Static files - ใช้ path.join ให้ถูกต้อง
+app.use(express.static(path.join(__dirname, '../frontend')));
+
 const server = http.createServer(app);
-
-// WebSocket Server
 const wss = new WebSocket.Server({ server });
 
-// เก็บ client ที่เชื่อมต่อ
 let cardReaderClient = null;
 let webClients = new Set();
 
@@ -31,7 +36,6 @@ wss.on('connection', (ws, req) => {
       console.log('📨 รับข้อความ:', data);
       
       if (data.type === 'reader_info') {
-        // เป็นเครื่องอ่านบัตร
         cardReaderClient = ws;
         console.log('✅ เชื่อมต่อกับเครื่องอ่านบัตรแล้ว');
         
@@ -40,7 +44,6 @@ wss.on('connection', (ws, req) => {
           message: 'เชื่อมต่อสำเร็จ'
         }));
       } else if (data.status === 'success' && data.data) {
-        // ข้อมูลจากเครื่องอ่านบัตร -> ส่งต่อให้เว็บ client
         webClients.forEach(client => {
           if (client !== ws && client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({
@@ -64,25 +67,34 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-// REST API - สั่งอ่านบัตร
+// REST API - สั่งอ่านบัตร (Mock Mode)
 app.get('/api/read-card', (req, res) => {
   console.log('📖 รับคำขออ่านบัตร');
   
-  if (!cardReaderClient) {
-    return res.status(503).json({
-      success: false,
-      error: 'ไม่พบเครื่องอ่านบัตร'
-    });
-  }
+  // ใช้ Mock Data ทันที (ไม่ต้องรอ Python)
+  const mockData = {
+    idCardNumber: '1103400123456',
+    firstName: 'สมชาย',
+    lastName: 'ใจดี',
+    birthDate: '15/05/2533',
+    gender: 'ชาย',
+    expiryDate: '14/05/2573',
+    address: '123/45 หมู่ 10 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110'
+  };
   
-  // สั่งให้เครื่องอ่านบัตรทำงาน
-  cardReaderClient.send(JSON.stringify({
-    command: 'read_card'
-  }));
+  // ส่งข้อมูลผ่าน WebSocket ไปยัง client
+  webClients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: 'card_data',
+        data: mockData
+      }));
+    }
+  });
   
   res.json({
     success: true,
-    message: 'กำลังอ่านบัตร... โปรดรอ'
+    message: 'กำลังอ่านบัตร... (Mock Mode)'
   });
 });
 
@@ -91,17 +103,19 @@ app.get('/api/status', (req, res) => {
   res.json({
     readerConnected: cardReaderClient !== null,
     webClients: webClients.size,
-    port: HTTP_PORT
+    port: HTTP_PORT,
+    mode: 'Mock'
   });
 });
 
 // หน้าแรก
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/frontend/index.html');
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 server.listen(HTTP_PORT, () => {
   console.log(`🚀 HTTP Server: http://localhost:${HTTP_PORT}`);
   console.log(`🔌 WebSocket Server: ws://localhost:${WS_PORT}`);
-  console.log(`📁 Serving files from: ${__dirname}/frontend`);
+  console.log(`📁 Serving files from: ${path.join(__dirname, '../frontend')}`);
+  console.log(`📝 Mode: Mock (ใช้ข้อมูลจำลอง)`);
 });
